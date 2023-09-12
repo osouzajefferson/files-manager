@@ -36,7 +36,7 @@ namespace FileManager.Controllers
                 listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
                 listObjectsRequest.ContinuationToken = listObjectsResponse.NextContinuationToken;
 
-                foreach (var objectKey in listObjectsResponse.S3Objects.Select(x => x.Key))
+                foreach (var objectKey in listObjectsResponse.S3Objects.Where(x => !x.Key.EndsWith("/")).Select(x => x.Key))
                 {
                     paths.Add(objectKey, $"https://{bucketName}.s3.{Amazon.RegionEndpoint.USWest2.SystemName}.amazonaws.com/{objectKey}");
                 }
@@ -44,6 +44,27 @@ namespace FileManager.Controllers
             } while (listObjectsResponse.IsTruncated);
 
             return Ok(paths);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreatePath(string path)
+        {
+            if (!path.EndsWith("/"))
+                path += "/";
+
+            var putObjectRequest = new PutObjectRequest
+            {
+                BucketName = bucketName,
+                Key = path,
+                ContentBody = ""
+            };
+
+            var response = await _amazonS3Client.PutObjectAsync(putObjectRequest);
+
+            if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                return BadRequest(new { Message = "Erro ao criar o diretório no S3." });
+
+            return Ok(new { Message = "Diretório criado com sucesso!" });
         }
 
         [HttpPost("upload")]
@@ -64,23 +85,20 @@ namespace FileManager.Controllers
 
             var response = await _amazonS3Client.PutObjectAsync(request);
 
-            if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
-            {
-                var premissionRequest = new PutACLRequest
-                {
-                    BucketName = bucketName,
-                    Key = keyName,
-                    CannedACL = S3CannedACL.PublicRead
-                };
-
-                await _amazonS3Client.PutACLAsync(premissionRequest);
-
-                return Ok(new { Message = "Upload realizado com sucesso!", FileName = keyName });
-            }
-            else
-            {
+            if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
                 return BadRequest(new { Message = "Erro ao enviar o arquivo para o S3." });
-            }
+
+
+            var premissionRequest = new PutACLRequest
+            {
+                BucketName = bucketName,
+                Key = keyName,
+                CannedACL = S3CannedACL.PublicRead
+            };
+
+            await _amazonS3Client.PutACLAsync(premissionRequest);
+
+            return Ok(new { Message = "Upload realizado com sucesso!", FileName = keyName });
         }
 
         [HttpDelete("delete/{objectKey}")]
@@ -94,14 +112,10 @@ namespace FileManager.Controllers
 
             var response = await _amazonS3Client.DeleteObjectAsync(deleteObjectRequest);
 
-            if (response.HttpStatusCode == System.Net.HttpStatusCode.NoContent)
-            {
-                return Ok(new { Message = "Arquivo deletado com sucesso!" });
-            }
-            else
-            {
+            if (response.HttpStatusCode != System.Net.HttpStatusCode.NoContent)
                 return BadRequest(new { Message = "Erro ao deletar o arquivo do S3." });
-            }
+
+            return Ok(new { Message = "Arquivo deletado com sucesso!" });
         }
     }
 }
