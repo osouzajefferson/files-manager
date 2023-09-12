@@ -22,7 +22,8 @@ namespace FileManager.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string prefix = "")
         {
-            var paths = new Dictionary<string, string>();
+            var files = new List<object>();
+
             var listObjectsRequest = new ListObjectsV2Request
             {
                 BucketName = bucketName,
@@ -38,12 +39,17 @@ namespace FileManager.Controllers
 
                 foreach (var objectKey in listObjectsResponse.S3Objects.Select(x => x.Key))
                 {
-                    paths.Add(objectKey, $"https://{bucketName}.s3.{Amazon.RegionEndpoint.USWest2.SystemName}.amazonaws.com/{objectKey}");
+                    files.Add(new
+                    {
+                        isFile = !objectKey.EndsWith("/"),
+                        path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.USWest2.SystemName}.amazonaws.com/{objectKey}",
+                        key = objectKey
+                    });
                 }
 
             } while (listObjectsResponse.IsTruncated);
 
-            return Ok(paths);
+            return Ok(files);
         }
 
         [HttpPost]
