@@ -36,7 +36,7 @@ namespace FileManager.Controllers
                 listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
                 listObjectsRequest.ContinuationToken = listObjectsResponse.NextContinuationToken;
 
-                foreach (var objectKey in listObjectsResponse.S3Objects.Where(x => !x.Key.EndsWith("/")).Select(x => x.Key))
+                foreach (var objectKey in listObjectsResponse.S3Objects.Select(x => x.Key))
                 {
                     paths.Add(objectKey, $"https://{bucketName}.s3.{Amazon.RegionEndpoint.USWest2.SystemName}.amazonaws.com/{objectKey}");
                 }
