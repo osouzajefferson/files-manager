@@ -20,9 +20,9 @@ namespace FileManager.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string prefix)
+        public async Task<IActionResult> Index(string prefix = "")
         {
-
+            var paths = new Dictionary<string, string>();
             var listObjectsRequest = new ListObjectsV2Request
             {
                 BucketName = bucketName,
@@ -32,17 +32,24 @@ namespace FileManager.Controllers
             ListObjectsV2Response listObjectsResponse;
             do
             {
+
                 listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
                 listObjectsRequest.ContinuationToken = listObjectsResponse.NextContinuationToken;
+
+                foreach (var objectKey in listObjectsResponse.S3Objects.Select(x => x.Key))
+                {
+                    paths.Add(objectKey, $"https://{bucketName}.s3.{Amazon.RegionEndpoint.USWest2.SystemName}.amazonaws.com/{objectKey}");
+                }
+
             } while (listObjectsResponse.IsTruncated);
 
-            return Ok(listObjectsResponse);
+            return Ok(paths);
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile(IFormFile file)
+        public async Task<IActionResult> UploadFile(IFormFile file, string prefix)
         {
-            var keyName = $"uploads/{file.FileName}";
+            var keyName = $"{prefix}/{file.FileName}";
 
             using var memoryStream = new MemoryStream();
             await file.CopyToAsync(memoryStream);
@@ -73,6 +80,27 @@ namespace FileManager.Controllers
             else
             {
                 return BadRequest(new { Message = "Erro ao enviar o arquivo para o S3." });
+            }
+        }
+
+        [HttpDelete("delete/{objectKey}")]
+        public async Task<IActionResult> DeleteFile(string objectKey)
+        {
+            var deleteObjectRequest = new DeleteObjectRequest
+            {
+                BucketName = bucketName,
+                Key = objectKey
+            };
+
+            var response = await _amazonS3Client.DeleteObjectAsync(deleteObjectRequest);
+
+            if (response.HttpStatusCode == System.Net.HttpStatusCode.NoContent)
+            {
+                return Ok(new { Message = "Arquivo deletado com sucesso!" });
+            }
+            else
+            {
+                return BadRequest(new { Message = "Erro ao deletar o arquivo do S3." });
             }
         }
     }
