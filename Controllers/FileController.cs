@@ -42,7 +42,7 @@ namespace FileManager.Controllers
                     files.Add(new
                     {
                         isFile = !objectKey.EndsWith("/"),
-                        path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.USWest2.SystemName}.amazonaws.com/{objectKey}",
+                        path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{objectKey}",
                         key = objectKey
                     });
                 }
