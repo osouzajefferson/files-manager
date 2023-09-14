@@ -10,6 +10,7 @@ namespace FileManager.Controllers
     {
         private const string accessKey = "AKIA4T5ULDU5WOCLDIAY";
         private const string secretKey = "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";
+        private const string fileNameAttribute = "x-amz-meta-custom-filename";
         private const string bucketName = "test-public-files-prov";
 
         private readonly IAmazonS3 _amazonS3Client;
@@ -31,19 +32,22 @@ namespace FileManager.Controllers
             };
 
             ListObjectsV2Response listObjectsResponse;
+
             do
             {
-
                 listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
                 listObjectsRequest.ContinuationToken = listObjectsResponse.NextContinuationToken;
 
-                foreach (var objectKey in listObjectsResponse.S3Objects.Select(x => x.Key))
+                foreach (var s3object in listObjectsResponse.S3Objects)
                 {
+                    bool isFile = !s3object.Key.EndsWith("/");
                     files.Add(new
                     {
-                        isFile = !objectKey.EndsWith("/"),
-                        path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{objectKey}",
-                        key = objectKey
+                        isFile,
+                        path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{s3object.Key}",
+                        key = s3object.Key,
+                        filename = "",
+                        fileExtension = isFile ? Path.GetExtension(s3object.Key) : string.Empty
                     });
                 }
 
@@ -74,7 +78,7 @@ namespace FileManager.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile(IFormFile file, string prefix)
+        public async Task<IActionResult> UploadFile(IFormFile file, string prefix, string fileName)
         {
             var keyName = $"{prefix}/{file.FileName}";
 
@@ -89,6 +93,7 @@ namespace FileManager.Controllers
                 ContentType = file.ContentType
             };
 
+            //request.Metadata.Add(fileNameAttribute, fileName);
             var response = await _amazonS3Client.PutObjectAsync(request);
 
             if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
