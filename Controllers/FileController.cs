@@ -199,6 +199,8 @@ namespace FileManager.Controllers
         public string Path { get; set; } = string.Empty;
         public string FileExtension { get; set; } = string.Empty;
         public List<FilesTreeNode> Children { get; set; } = new List<FilesTreeNode>();
+
+        public string BreadCrumbs { get; set; } = "jeff/2024";
     }
 
 }
