@@ -1,6 +1,7 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
+using System.IO;
 
 namespace FileManager.Controllers
 {
@@ -18,6 +19,39 @@ namespace FileManager.Controllers
         public FileController()
         {
             _amazonS3Client = new AmazonS3Client(accessKey, secretKey, Amazon.RegionEndpoint.SAEast1);
+        }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> Search(string query)
+        {
+            if (string.IsNullOrEmpty(query))
+            {
+                return BadRequest("Query parameter is required.");
+            }
+
+            var rootNode = new FilesTreeNode { Name = "", IsDirectory = true };
+            await BuildTree("", rootNode);
+
+            var matchingItems = FilterTreeNodes(rootNode, query).ToList();
+
+            return Ok(matchingItems);
+        }
+
+        private IEnumerable<FilesTreeNode> FilterTreeNodes(FilesTreeNode node, string query)
+        {
+            var matchingNodes = new List<FilesTreeNode>();
+
+            if (node.Name.Contains(query))
+            {
+                matchingNodes.Add(node);
+            }
+
+            foreach (var child in node.Children)
+            {
+                matchingNodes.AddRange(FilterTreeNodes(child, query));
+            }
+
+            return matchingNodes;
         }
 
         [HttpGet]
@@ -38,7 +72,7 @@ namespace FileManager.Controllers
             {
                 BucketName = bucketName,
                 Key = path,
-                ContentBody = ""
+                ContentBody = "",
             };
 
             var response = await _amazonS3Client.PutObjectAsync(putObjectRequest);
@@ -128,10 +162,11 @@ namespace FileManager.Controllers
                 var node = new FilesTreeNode
                 {
                     Name = Path.GetFileName(s3Object.Key),
-                    IsDirectory = false,
+                    IsDirectory = s3Object.Key.EndsWith("/"),
                     Path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{s3Object.Key}",
                     FileExtension = Path.GetExtension(s3Object.Key)
                 };
+
                 currentNode.Children.Add(node);
             }
         }
