@@ -21,39 +21,11 @@ namespace FileManager.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string prefix = "")
+        public async Task<IActionResult> Index(string directory = "")
         {
-            var files = new List<object>();
-
-            var listObjectsRequest = new ListObjectsV2Request
-            {
-                BucketName = bucketName,
-                Prefix = prefix
-            };
-
-            ListObjectsV2Response listObjectsResponse;
-
-            do
-            {
-                listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
-                listObjectsRequest.ContinuationToken = listObjectsResponse.NextContinuationToken;
-
-                foreach (var s3object in listObjectsResponse.S3Objects)
-                {
-                    bool isFile = !s3object.Key.EndsWith("/");
-                    files.Add(new
-                    {
-                        isFile,
-                        path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{s3object.Key}",
-                        key = s3object.Key,
-                        filename = "",
-                        fileExtension = isFile ? Path.GetExtension(s3object.Key) : string.Empty
-                    });
-                }
-
-            } while (listObjectsResponse.IsTruncated);
-
-            return Ok(files);
+            var rootNode = new FilesTreeNode { Name = directory, IsDirectory = true };
+            await BuildTree(directory, rootNode);
+            return Ok(rootNode);
         }
 
         [HttpPost]
@@ -128,5 +100,49 @@ namespace FileManager.Controllers
 
             return Ok(new { Message = "Arquivo deletado com sucesso!" });
         }
+
+        private async Task BuildTree(string prefix, FilesTreeNode currentNode)
+        {
+            var listObjectsRequest = new ListObjectsV2Request
+            {
+                BucketName = bucketName,
+                Prefix = prefix,
+                Delimiter = "/"
+            };
+
+            var listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
+
+            foreach (var commonPrefix in listObjectsResponse.CommonPrefixes)
+            {
+                var node = new FilesTreeNode
+                {
+                    Name = Path.GetFileName(commonPrefix.TrimEnd('/')),
+                    IsDirectory = true
+                };
+                currentNode.Children.Add(node);
+                await BuildTree(commonPrefix, node);
+            }
+
+            foreach (var s3Object in listObjectsResponse.S3Objects)
+            {
+                var node = new FilesTreeNode
+                {
+                    Name = Path.GetFileName(s3Object.Key),
+                    IsDirectory = false,
+                    Path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{s3Object.Key}",
+                    FileExtension = Path.GetExtension(s3Object.Key)
+                };
+                currentNode.Children.Add(node);
+            }
+        }
+    }
+
+    public class FilesTreeNode
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsDirectory { get; set; } = false;
+        public string Path { get; set; } = string.Empty;
+        public string FileExtension { get; set; } = string.Empty;
+        public List<FilesTreeNode> Children { get; set; } = new List<FilesTreeNode>();
     }
 }
