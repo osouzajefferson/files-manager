@@ -101,13 +101,13 @@ namespace FileManager.Controllers
             return Ok(new { Message = "Arquivo deletado com sucesso!" });
         }
 
-        private async Task BuildTree(string prefix, FilesTreeNode currentNode)
+        private async Task BuildTree(string directory, FilesTreeNode currentNode)
         {
             var listObjectsRequest = new ListObjectsV2Request
             {
                 BucketName = bucketName,
-                Prefix = prefix,
-                Delimiter = "/"
+                Prefix = directory,
+                Delimiter = $"{directory}/"
             };
 
             var listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
