@@ -21,6 +21,14 @@ namespace FileManager.Controllers
             _amazonS3Client = new AmazonS3Client(accessKey, secretKey, Amazon.RegionEndpoint.SAEast1);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Index(string directory = "")
+        {
+            var rootNode = new FilesTreeNode { Name = directory, IsDirectory = true };
+            await BuildTree(directory, rootNode);
+            return Ok(rootNode);
+        }
+
         [HttpGet("search")]
         public async Task<IActionResult> Search(string query)
         {
@@ -34,7 +42,11 @@ namespace FileManager.Controllers
 
             var matchingItems = FilterTreeNodes(rootNode, query).ToList();
 
-            return Ok(matchingItems);
+            var ret = TreeNodeHelper.GetAllNodesAndChildren(matchingItems);
+            foreach (var item in ret)
+                item.Children = new();
+
+            return Ok(ret);
         }
 
         private IEnumerable<FilesTreeNode> FilterTreeNodes(FilesTreeNode node, string query)
@@ -52,14 +64,6 @@ namespace FileManager.Controllers
             }
 
             return matchingNodes;
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> Index(string directory = "")
-        {
-            var rootNode = new FilesTreeNode { Name = directory, IsDirectory = true };
-            await BuildTree(directory, rootNode);
-            return Ok(rootNode);
         }
 
         [HttpPost]
@@ -172,6 +176,22 @@ namespace FileManager.Controllers
         }
     }
 
+    public class TreeNodeHelper
+    {
+        public static List<FilesTreeNode> GetAllNodesAndChildren(IEnumerable<FilesTreeNode> nodes)
+        {
+            List<FilesTreeNode> result = new List<FilesTreeNode>();
+
+            foreach (var node in nodes)
+            {
+                result.Add(node);
+                result.AddRange(GetAllNodesAndChildren(node.Children));
+            }
+
+            return result;
+        }
+    }
+
     public class FilesTreeNode
     {
         public string Name { get; set; } = string.Empty;
@@ -180,4 +200,5 @@ namespace FileManager.Controllers
         public string FileExtension { get; set; } = string.Empty;
         public List<FilesTreeNode> Children { get; set; } = new List<FilesTreeNode>();
     }
+
 }
