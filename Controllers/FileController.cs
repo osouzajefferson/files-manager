@@ -19,7 +19,13 @@ namespace FileManager.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string directory = "")
         {
-            var rootNode = new FilesTreeNode { Name = "", IsDirectory = true, Path = "/" };
+            var rootNode = new FilesTreeNode
+            {
+                Name = "",
+                IsDirectory = true,
+                Path = "/",
+                BreadCrumbs = directory
+            };
 
             var listObjectsRequest = new ListObjectsV2Request
             {
@@ -34,7 +40,7 @@ namespace FileManager.Controllers
                 response = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
                 foreach (var s3Object in response.S3Objects)
                 {
-                    FileTreeBuilder.InsertObjectIntoTree2(rootNode, s3Object, directory);
+                    FileTreeBuilder.InsertObjectIntoTree(rootNode, s3Object, directory);
                 }
 
                 listObjectsRequest.ContinuationToken = response.NextContinuationToken;
