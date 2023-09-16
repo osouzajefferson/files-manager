@@ -9,16 +9,11 @@ namespace FileManager.Controllers
     [Route("api/[controller]")]
     public class FileController : Controller
     {
-        private const string accessKey = "AKIA4T5ULDU5WOCLDIAY";
-        private const string secretKey = "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";
-        private const string fileNameAttribute = "x-amz-meta-custom-filename";
-        private const string bucketName = "test-public-files-prov";
-
         private readonly IAmazonS3 _amazonS3Client;
 
         public FileController()
         {
-            _amazonS3Client = new AmazonS3Client(accessKey, secretKey, Amazon.RegionEndpoint.SAEast1);
+            _amazonS3Client = new AmazonS3Client(AppConstants.AccessKey, AppConstants.SecretKey, Amazon.RegionEndpoint.SAEast1);
         }
 
         [HttpGet]
@@ -74,7 +69,7 @@ namespace FileManager.Controllers
 
             var putObjectRequest = new PutObjectRequest
             {
-                BucketName = bucketName,
+                BucketName = AppConstants.BucketName,
                 Key = path,
                 ContentBody = "",
             };
@@ -97,7 +92,7 @@ namespace FileManager.Controllers
 
             var request = new PutObjectRequest
             {
-                BucketName = bucketName,
+                BucketName = AppConstants.BucketName,
                 Key = keyName,
                 InputStream = memoryStream,
                 ContentType = file.ContentType
@@ -109,10 +104,9 @@ namespace FileManager.Controllers
             if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
                 return BadRequest(new { Message = "Erro ao enviar o arquivo para o S3." });
 
-
             var premissionRequest = new PutACLRequest
             {
-                BucketName = bucketName,
+                BucketName = AppConstants.BucketName,
                 Key = keyName,
                 CannedACL = S3CannedACL.PublicRead
             };
@@ -127,7 +121,7 @@ namespace FileManager.Controllers
         {
             var deleteObjectRequest = new DeleteObjectRequest
             {
-                BucketName = bucketName,
+                BucketName = AppConstants.BucketName,
                 Key = objectKey
             };
 
@@ -143,7 +137,7 @@ namespace FileManager.Controllers
         {
             var listObjectsRequest = new ListObjectsV2Request
             {
-                BucketName = bucketName,
+                BucketName = AppConstants.BucketName,
                 Prefix = directory,
                 Delimiter = $"{directory}/"
             };
@@ -157,6 +151,7 @@ namespace FileManager.Controllers
                     Name = Path.GetFileName(commonPrefix.TrimEnd('/')),
                     IsDirectory = true
                 };
+
                 currentNode.Children.Add(node);
                 await BuildTree(commonPrefix, node);
             }
@@ -167,9 +162,12 @@ namespace FileManager.Controllers
                 {
                     Name = s3Object.Key.TrimEnd('/').Split('/').Last(),
                     IsDirectory = s3Object.Key.EndsWith("/"),
-                    Path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{s3Object.Key}",
+                    Path = $"{AppConstants.GetFullPath}/{s3Object.Key}",
                     FileExtension = Path.GetExtension(s3Object.Key)
                 };
+
+                if (node.IsDirectory)                
+                    node.BreadCrumbs = node.Path.Replace($"{AppConstants.GetFullPath}", "").TrimEnd('/');                
 
                 currentNode.Children.Add(node);
             }
@@ -199,8 +197,6 @@ namespace FileManager.Controllers
         public string Path { get; set; } = string.Empty;
         public string FileExtension { get; set; } = string.Empty;
         public List<FilesTreeNode> Children { get; set; } = new List<FilesTreeNode>();
-
-        public string BreadCrumbs { get; set; } = "jeff/2024";
+        public string BreadCrumbs { get; set; } = string.Empty;
     }
-
 }
