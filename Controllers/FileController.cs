@@ -1,7 +1,6 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
-using System.IO;
 
 namespace FileManager.Controllers
 {
@@ -109,7 +108,7 @@ namespace FileManager.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile(IFormFile file, string prefix, string fileName)
+        public async Task<IActionResult> UploadFile(IFormFile file, string prefix)
         {
             var keyName = $"{prefix}/{file.FileName}";
 
