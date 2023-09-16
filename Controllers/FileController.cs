@@ -19,30 +19,50 @@ namespace FileManager.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string directory = "")
         {
-            var rootNode = new FilesTreeNode { Name = directory, IsDirectory = true };
-            await BuildTree(directory, rootNode);
-            
+            var rootNode = new FilesTreeNode { Name = "", IsDirectory = true, Path = "/" };
+
+            var listObjectsRequest = new ListObjectsV2Request
+            {
+                BucketName = AppConstants.BucketName,
+                Prefix = directory,
+                Delimiter = $"{directory}/"
+            };
+
+            ListObjectsV2Response response;
+
+            do
+            {
+                response = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
+                foreach (var s3Object in response.S3Objects)
+                {
+                    FileTreeBuilder.InsertObjectIntoTree(rootNode, s3Object);
+                }
+
+                listObjectsRequest.ContinuationToken = response.NextContinuationToken;
+
+            } while (response.IsTruncated);
+
             return Ok(rootNode);
         }
 
         [HttpGet("search")]
         public async Task<IActionResult> Search(string query)
         {
-            if (string.IsNullOrEmpty(query))
-            {
-                return BadRequest("Query parameter is required.");
-            }
+            //if (string.IsNullOrEmpty(query))
+            //{
+            //    return BadRequest("Query parameter is required.");
+            //}
 
-            var rootNode = new FilesTreeNode { Name = "", IsDirectory = true };
-            await BuildTree("", rootNode);
+            //var rootNode = new FilesTreeNode { Name = "", IsDirectory = true };
+            //await BuildTree("", rootNode);
 
-            var matchingItems = FilterTreeNodes(rootNode, query).ToList();
+            //var matchingItems = FilterTreeNodes(rootNode, query).ToList();
 
-            var ret = TreeNodeHelper.GetAllNodesAndChildren(matchingItems);
-            foreach (var item in ret)
-                item.Children = new();
+            //var ret = TreeNodeHelper.GetAllNodesAndChildren(matchingItems);
+            //foreach (var item in ret)
+            //    item.Children = new();
 
-            return Ok(ret);
+            return Ok("");
         }
 
         private IEnumerable<FilesTreeNode> FilterTreeNodes(FilesTreeNode node, string query)
@@ -131,46 +151,6 @@ namespace FileManager.Controllers
                 return BadRequest(new { Message = "Erro ao deletar o arquivo do S3." });
 
             return Ok(new { Message = "Arquivo deletado com sucesso!" });
-        }
-
-        private async Task BuildTree(string directory, FilesTreeNode currentNode)
-        {
-            var listObjectsRequest = new ListObjectsV2Request
-            {
-                BucketName = AppConstants.BucketName,
-                Prefix = directory,
-                Delimiter = $"{directory}/"
-            };
-
-            var listObjectsResponse = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
-
-            foreach (var commonPrefix in listObjectsResponse.CommonPrefixes)
-            {
-                var node = new FilesTreeNode
-                {
-                    Name = Path.GetFileName(commonPrefix.TrimEnd('/')),
-                    IsDirectory = true
-                };
-
-                currentNode.Children.Add(node);
-                await BuildTree(commonPrefix, node);
-            }
-
-            foreach (var s3Object in listObjectsResponse.S3Objects)
-            {
-                var node = new FilesTreeNode
-                {
-                    Name = s3Object.Key.TrimEnd('/').Split('/').Last(),
-                    IsDirectory = s3Object.Key.EndsWith("/"),
-                    Path = $"{AppConstants.GetFullPath}/{s3Object.Key}",
-                    FileExtension = Path.GetExtension(s3Object.Key)
-                };
-
-                if (node.IsDirectory)                
-                    node.BreadCrumbs = node.Path.Replace($"{AppConstants.GetFullPath}", "").TrimEnd('/');                
-
-                currentNode.Children.Add(node);
-            }
         }
     }
 
