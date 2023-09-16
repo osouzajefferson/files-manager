@@ -22,7 +22,7 @@ namespace FileManager.Controllers
             var rootNode = new FilesTreeNode { Name = directory, IsDirectory = true };
             await BuildTree(directory, rootNode);
             
-            return Ok(rootNode.Children.Skip(1));
+            return Ok(rootNode);
         }
 
         [HttpGet("search")]
