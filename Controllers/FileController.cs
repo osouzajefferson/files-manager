@@ -24,8 +24,7 @@ namespace FileManager.Controllers
             var listObjectsRequest = new ListObjectsV2Request
             {
                 BucketName = AppConstants.BucketName,
-                Prefix = directory,
-                Delimiter = $"{directory}/"
+                Prefix = directory
             };
 
             ListObjectsV2Response response;
@@ -35,7 +34,7 @@ namespace FileManager.Controllers
                 response = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
                 foreach (var s3Object in response.S3Objects)
                 {
-                    FileTreeBuilder.InsertObjectIntoTree(rootNode, s3Object);
+                    FileTreeBuilder.InsertObjectIntoTree2(rootNode, s3Object, directory);
                 }
 
                 listObjectsRequest.ContinuationToken = response.NextContinuationToken;
