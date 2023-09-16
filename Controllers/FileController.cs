@@ -99,7 +99,6 @@ namespace FileManager.Controllers
                 ContentType = file.ContentType
             };
 
-            //request.Metadata.Add(fileNameAttribute, fileName);
             var response = await _amazonS3Client.PutObjectAsync(request);
 
             if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
@@ -117,7 +116,7 @@ namespace FileManager.Controllers
             return Ok(new { Message = "Upload realizado com sucesso!", FileName = keyName });
         }
 
-        [HttpDelete("delete/{objectKey}")]
+        [HttpDelete("delete")]
         public async Task<IActionResult> DeleteFile(string objectKey)
         {
             var deleteObjectRequest = new DeleteObjectRequest
