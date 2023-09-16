@@ -165,7 +165,7 @@ namespace FileManager.Controllers
             {
                 var node = new FilesTreeNode
                 {
-                    Name = Path.GetFileName(s3Object.Key),
+                    Name = s3Object.Key.TrimEnd('/').Split('/').Last(),
                     IsDirectory = s3Object.Key.EndsWith("/"),
                     Path = $"https://{bucketName}.s3.{Amazon.RegionEndpoint.SAEast1.SystemName}.amazonaws.com/{s3Object.Key}",
                     FileExtension = Path.GetExtension(s3Object.Key)
@@ -176,11 +176,11 @@ namespace FileManager.Controllers
         }
     }
 
-    public class TreeNodeHelper
+    public static class TreeNodeHelper
     {
         public static List<FilesTreeNode> GetAllNodesAndChildren(IEnumerable<FilesTreeNode> nodes)
         {
-            List<FilesTreeNode> result = new List<FilesTreeNode>();
+            List<FilesTreeNode> result = new();
 
             foreach (var node in nodes)
             {
