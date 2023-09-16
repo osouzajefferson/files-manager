@@ -21,7 +21,7 @@ namespace FileManager.Controllers
         {
             var rootNode = new FilesTreeNode { Name = directory, IsDirectory = true };
             await BuildTree(directory, rootNode);
-            return Ok(rootNode);
+            return Ok(rootNode.Children);
         }
 
         [HttpGet("search")]
