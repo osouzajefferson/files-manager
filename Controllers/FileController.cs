@@ -91,19 +91,13 @@ namespace FileManager.Controllers
             return Ok(new { Message = "Upload realizado com sucesso!", FileName = keyName });
         }
 
-        //[HttpGet("download")]
-        //public async Task<IActionResult> DownloadObjectAsync(string key)
-        //{
-        //    
-        //}
-
         [HttpGet("download")]
         public async Task<IActionResult> DownloadObjects([FromQuery] List<string> keys)
         {
             if (keys == null || keys.Count == 0)
                 return BadRequest("At least one key is required.");
 
-            if(keys.Count == 1)
+            if (keys.Count == 1)
             {
                 using var response = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, keys.First());
                 if (response.ResponseStream != null)
@@ -140,6 +134,53 @@ namespace FileManager.Controllers
             memoryStream.Position = 0;
             return File(memoryStream, "application/zip", "files.zip");
         }
+
+        [HttpGet("downloadfolder")]
+        public async Task<IActionResult> DownloadFolderObjects(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))            
+                return BadRequest("The 'path' parameter is required.");            
+
+            if (!path.EndsWith("/"))
+                path += "/";            
+
+            var request = new ListObjectsV2Request { BucketName = AppConstants.BucketName, Prefix = path };
+            var response = await _amazonS3Client.ListObjectsV2Async(request);
+
+            if (!response.S3Objects.Any())            
+                return NotFound($"No files found in the specified path: '{path}'.");
+
+            var memoryStream = new MemoryStream();
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+            {
+                foreach (var s3Object in response.S3Objects)
+                {
+                    try
+                    {
+                        var objectResponse = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, s3Object.Key);
+                        var entryName = s3Object.Key.Replace(path, "");
+
+                        if (string.IsNullOrEmpty(entryName))
+                            continue;
+
+                        var entry = archive.CreateEntry(entryName);
+
+                        using var entryStream = entry.Open();
+                        using var stream = objectResponse.ResponseStream;
+                        await stream.CopyToAsync(entryStream);
+                    }
+                    catch (AmazonS3Exception ex)
+                    {
+                        return StatusCode(500, $"Error while fetching {s3Object.Key} from S3: {ex.Message}");
+                    }
+                }
+            }
+
+            memoryStream.Position = 0;
+
+            return File(memoryStream, "application/zip", $"{Path.GetFileName(path.TrimEnd('/'))}.zip");
+        }
+
 
         [HttpDelete("delete")]
         public async Task<IActionResult> DeleteFile(string objectKey)
