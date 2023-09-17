@@ -1,5 +1,4 @@
 ﻿using Amazon.S3.Model;
-using FileManager.Controllers;
 
 namespace FileManager
 {
@@ -37,7 +36,26 @@ namespace FileManager
                 currentNode = childNode;
             }
         }
+        public static void RecursiveSearch(FilesTreeNode node, string searchText, List<FilesTreeNode> results)
+        {
+            if (node.Name.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                results.Add(new FilesTreeNode
+                {
+                    Name = node.Name,
+                    IsDirectory = node.IsDirectory,
+                    BreadCrumbs = node.BreadCrumbs,
+                    FileExtension = node.FileExtension,
+                    Children = new(),
+                    Path = node.Path
+                });
+
+            foreach (var child in node.Children)
+            {
+                RecursiveSearch(child, searchText, results);
+            }
+        }
     }
+
     public class FilesTreeNode
     {
         public string Name { get; set; } = string.Empty;

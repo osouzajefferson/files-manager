@@ -1,6 +1,8 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
+using Amazon.Util.Internal;
 using Microsoft.AspNetCore.Mvc;
+using System.IO;
 
 namespace FileManager.Controllers
 {
@@ -17,6 +19,12 @@ namespace FileManager.Controllers
 
         [HttpGet]
         public async Task<IActionResult> Index(string directory = "")
+        {
+            var nodes = await GetAllFiles(directory);
+            return Ok(nodes);
+        }
+
+        private async Task<FilesTreeNode> GetAllFiles(string directory = "")
         {
             var rootNode = new FilesTreeNode
             {
@@ -46,42 +54,18 @@ namespace FileManager.Controllers
 
             } while (response.IsTruncated);
 
-            return Ok(rootNode);
+            return rootNode;
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search(string query)
+        public async Task<IActionResult> Search(string rootPah, string query)
         {
-            //if (string.IsNullOrEmpty(query))
-            //{
-            //    return BadRequest("Query parameter is required.");
-            //}
+            var rootNode = await GetAllFiles(rootPah);
 
-            //var rootNode = new FilesTreeNode { Name = "", IsDirectory = true };
-            //await BuildTree("", rootNode);
+            List<FilesTreeNode> results = new();
+            FileTreeBuilder.RecursiveSearch(rootNode, query, results);
 
-            //var matchingItems = FilterTreeNodes(rootNode, query).ToList();
-
-            //var ret = TreeNodeHelper.GetAllNodesAndChildren(matchingItems);
-            //foreach (var item in ret)
-            //    item.Children = new();
-
-            return Ok("");
-        }
-
-        private IEnumerable<FilesTreeNode> FilterTreeNodes(FilesTreeNode node, string query)
-        {
-            var matchingNodes = new List<FilesTreeNode>();
-
-            if (node.Name.Contains(query))
-                matchingNodes.Add(node);
-
-            foreach (var child in node.Children)
-            {
-                matchingNodes.AddRange(FilterTreeNodes(child, query));
-            }
-
-            return matchingNodes;
+            return Ok(results);
         }
 
         [HttpPost]
