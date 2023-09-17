@@ -38,4 +38,13 @@ namespace FileManager
             }
         }
     }
+    public class FilesTreeNode
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsDirectory { get; set; } = false;
+        public string Path { get; set; } = string.Empty;
+        public string FileExtension { get; set; } = string.Empty;
+        public List<FilesTreeNode> Children { get; set; } = new List<FilesTreeNode>();
+        public string BreadCrumbs { get; set; } = string.Empty;
+    }
 }

@@ -74,9 +74,7 @@ namespace FileManager.Controllers
             var matchingNodes = new List<FilesTreeNode>();
 
             if (node.Name.Contains(query))
-            {
                 matchingNodes.Add(node);
-            }
 
             foreach (var child in node.Children)
             {
@@ -140,6 +138,21 @@ namespace FileManager.Controllers
             return Ok(new { Message = "Upload realizado com sucesso!", FileName = keyName });
         }
 
+        [HttpGet("download")]
+        public async Task<IActionResult> DownloadObjectAsync(string key)
+        {
+            using var response = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, key);
+            if (response.ResponseStream != null)
+            {
+                var memory = new MemoryStream();
+                response.ResponseStream.CopyTo(memory);
+
+                return File(memory.ToArray(), "application/octet-stream", Path.GetFileName(key));
+            }
+
+            return NotFound();
+        }
+
         [HttpDelete("delete")]
         public async Task<IActionResult> DeleteFile(string objectKey)
         {
@@ -156,31 +169,5 @@ namespace FileManager.Controllers
 
             return Ok(new { Message = "Arquivo deletado com sucesso!" });
         }
-    }
-
-    public static class TreeNodeHelper
-    {
-        public static List<FilesTreeNode> GetAllNodesAndChildren(IEnumerable<FilesTreeNode> nodes)
-        {
-            List<FilesTreeNode> result = new();
-
-            foreach (var node in nodes)
-            {
-                result.Add(node);
-                result.AddRange(GetAllNodesAndChildren(node.Children));
-            }
-
-            return result;
-        }
-    }
-
-    public class FilesTreeNode
-    {
-        public string Name { get; set; } = string.Empty;
-        public bool IsDirectory { get; set; } = false;
-        public string Path { get; set; } = string.Empty;
-        public string FileExtension { get; set; } = string.Empty;
-        public List<FilesTreeNode> Children { get; set; } = new List<FilesTreeNode>();
-        public string BreadCrumbs { get; set; } = string.Empty;
     }
 }
