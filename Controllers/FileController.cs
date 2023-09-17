@@ -24,39 +24,6 @@ namespace FileManager.Controllers
             return Ok(nodes);
         }
 
-        private async Task<FilesTreeNode> GetAllFiles(string directory = "")
-        {
-            var rootNode = new FilesTreeNode
-            {
-                Name = "",
-                IsDirectory = true,
-                Path = "/",
-                BreadCrumbs = directory
-            };
-
-            var listObjectsRequest = new ListObjectsV2Request
-            {
-                BucketName = AppConstants.BucketName,
-                Prefix = directory
-            };
-
-            ListObjectsV2Response response;
-
-            do
-            {
-                response = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
-                foreach (var s3Object in response.S3Objects)
-                {
-                    FileTreeBuilder.InsertObjectIntoTree(rootNode, s3Object, directory);
-                }
-
-                listObjectsRequest.ContinuationToken = response.NextContinuationToken;
-
-            } while (response.IsTruncated);
-
-            return rootNode;
-        }
-
         [HttpGet("search")]
         public async Task<IActionResult> Search(string rootPah, string query)
         {
@@ -152,6 +119,39 @@ namespace FileManager.Controllers
                 return BadRequest(new { Message = "Erro ao deletar o arquivo do S3." });
 
             return Ok(new { Message = "Arquivo deletado com sucesso!" });
+        }
+
+        private async Task<FilesTreeNode> GetAllFiles(string directory = "")
+        {
+            var rootNode = new FilesTreeNode
+            {
+                Name = "",
+                IsDirectory = true,
+                Path = "/",
+                BreadCrumbs = directory
+            };
+
+            var listObjectsRequest = new ListObjectsV2Request
+            {
+                BucketName = AppConstants.BucketName,
+                Prefix = directory
+            };
+
+            ListObjectsV2Response response;
+
+            do
+            {
+                response = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
+                foreach (var s3Object in response.S3Objects)
+                {
+                    FileTreeBuilder.InsertObjectIntoTree(rootNode, s3Object, directory);
+                }
+
+                listObjectsRequest.ContinuationToken = response.NextContinuationToken;
+
+            } while (response.IsTruncated);
+
+            return rootNode;
         }
     }
 }
