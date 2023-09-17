@@ -1,8 +1,10 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.Util.Internal;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
+using System.IO.Compression;
 
 namespace FileManager.Controllers
 {
@@ -89,19 +91,54 @@ namespace FileManager.Controllers
             return Ok(new { Message = "Upload realizado com sucesso!", FileName = keyName });
         }
 
-        [HttpGet("download")]
-        public async Task<IActionResult> DownloadObjectAsync(string key)
-        {
-            using var response = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, key);
-            if (response.ResponseStream != null)
-            {
-                var memory = new MemoryStream();
-                response.ResponseStream.CopyTo(memory);
+        //[HttpGet("download")]
+        //public async Task<IActionResult> DownloadObjectAsync(string key)
+        //{
+        //    
+        //}
 
-                return File(memory.ToArray(), "application/octet-stream", Path.GetFileName(key));
+        [HttpGet("download")]
+        public async Task<IActionResult> DownloadObjects([FromQuery] List<string> keys)
+        {
+            if (keys == null || keys.Count == 0)
+                return BadRequest("At least one key is required.");
+
+            if(keys.Count == 1)
+            {
+                using var response = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, keys.First());
+                if (response.ResponseStream != null)
+                {
+                    var memory = new MemoryStream();
+                    response.ResponseStream.CopyTo(memory);
+
+                    return File(memory.ToArray(), "application/octet-stream", Path.GetFileName(keys.First()));
+                }
+
+                return NotFound();
             }
 
-            return NotFound();
+            var memoryStream = new MemoryStream();
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+            {
+                foreach (var key in keys)
+                {
+                    try
+                    {
+                        using var response = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, key);
+                        var entry = archive.CreateEntry(Path.GetFileName(key));
+
+                        using var entryStream = entry.Open();
+                        response.ResponseStream.CopyTo(entryStream);
+                    }
+                    catch (AmazonS3Exception ex)
+                    {
+                        return StatusCode(500, $"Error while fetching {key} from S3: {ex.Message}");
+                    }
+                }
+            }
+
+            memoryStream.Position = 0;
+            return File(memoryStream, "application/zip", "files.zip");
         }
 
         [HttpDelete("delete")]
