@@ -27,9 +27,9 @@ namespace FileManager.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search(string rootPah, string query)
+        public async Task<IActionResult> Search(string rootPath, string query)
         {
-            var rootNode = await GetAllFiles(rootPah);
+            var rootNode = await GetAllFiles(rootPath);
 
             List<FilesTreeNode> results = new();
             FileTreeBuilder.RecursiveSearch(rootNode, query, results);
@@ -58,37 +58,20 @@ namespace FileManager.Controllers
             return Ok(new { Message = "Diretório criado com sucesso!" });
         }
 
-        [HttpPost("upload")]
+        [HttpPost("upload/single")]
         public async Task<IActionResult> UploadFile(IFormFile file, string path)
         {
-            var keyName = $"{path}/{file.FileName}";
+            await UploadSingleFile(file, path);
+            return Ok();
+        }
 
-            using var memoryStream = new MemoryStream();
-            await file.CopyToAsync(memoryStream);
+        [HttpPost("upload/multiple")]
+        public async Task<IActionResult> UploadFiles(IFormFile[] file, string path)
+        {
+            foreach (var f in file)            
+                await UploadSingleFile(f, path);
 
-            var request = new PutObjectRequest
-            {
-                BucketName = AppConstants.BucketName,
-                Key = keyName,
-                InputStream = memoryStream,
-                ContentType = file.ContentType
-            };
-
-            var response = await _amazonS3Client.PutObjectAsync(request);
-
-            if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
-                return BadRequest(new { Message = "Erro ao enviar o arquivo para o S3." });
-
-            var premissionRequest = new PutACLRequest
-            {
-                BucketName = AppConstants.BucketName,
-                Key = keyName,
-                CannedACL = S3CannedACL.PublicRead
-            };
-
-            await _amazonS3Client.PutACLAsync(premissionRequest);
-
-            return Ok(new { Message = "Upload realizado com sucesso!", FileName = keyName });
+            return Ok();
         }
 
         [HttpGet("download")]
@@ -232,6 +215,36 @@ namespace FileManager.Controllers
             } while (response.IsTruncated);
 
             return rootNode;
+        }
+
+        private async Task UploadSingleFile(IFormFile file, string path)
+        {
+            var keyName = $"{path}/{file.FileName}";
+
+            using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream);
+
+            var request = new PutObjectRequest
+            {
+                BucketName = AppConstants.BucketName,
+                Key = keyName,
+                InputStream = memoryStream,
+                ContentType = file.ContentType
+            };
+
+            var response = await _amazonS3Client.PutObjectAsync(request);
+
+            if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                throw new Exception(response.ToString());
+
+            var premissionRequest = new PutACLRequest
+            {
+                BucketName = AppConstants.BucketName,
+                Key = keyName,
+                CannedACL = S3CannedACL.PublicRead
+            };
+
+            await _amazonS3Client.PutACLAsync(premissionRequest);
         }
     }
 }
