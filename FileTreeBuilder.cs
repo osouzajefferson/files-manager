@@ -28,7 +28,7 @@ namespace FileManager
 
 
                     if (childNode.IsDirectory)
-                        childNode.BreadCrumbs = childNode.Path.Replace($"{AppConstants.GetFullPath}", "").TrimEnd('/');
+                        childNode.BreadCrumbs = childNode.Path.Replace($"{AppConstants.GetFullPath}", "").TrimEnd('/').TrimStart('/');
 
                     currentNode.Children.Add(childNode);
                 }
