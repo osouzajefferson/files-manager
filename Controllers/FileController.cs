@@ -34,7 +34,9 @@ namespace FileManager.Controllers
             List<FilesTreeNode> results = new();
             FileTreeBuilder.RecursiveSearch(rootNode, query, results);
 
-            return Ok(results);
+            FilesTreeNode node = new() { Children = results, IsDirectory = true };
+
+            return Ok(node);
         }
 
         [HttpPost]
@@ -68,7 +70,7 @@ namespace FileManager.Controllers
         [HttpPost("upload/multiple")]
         public async Task<IActionResult> UploadFiles(IFormFile[] file, string path)
         {
-            foreach (var f in file)            
+            foreach (var f in file)
                 await UploadSingleFile(f, path);
 
             return Ok();
