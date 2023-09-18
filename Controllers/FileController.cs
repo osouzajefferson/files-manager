@@ -169,9 +169,6 @@ namespace FileManager.Controllers
         [HttpDelete("delete")]
         public async Task<IActionResult> DeleteFile(string key)
         {
-            if (!key.EndsWith("/"))
-                key += "/";
-
             var deleteObjectRequest = new DeleteObjectRequest
             {
                 BucketName = AppConstants.BucketName,
