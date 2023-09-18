@@ -20,9 +20,9 @@ namespace FileManager.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string directory = "")
+        public async Task<IActionResult> Index(string path = "")
         {
-            var nodes = await GetAllFiles(directory);
+            var nodes = await GetAllFiles(path);
             return Ok(nodes);
         }
 
@@ -59,9 +59,9 @@ namespace FileManager.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile(IFormFile file, string prefix)
+        public async Task<IActionResult> UploadFile(IFormFile file, string path)
         {
-            var keyName = $"{prefix}/{file.FileName}";
+            var keyName = $"{path}/{file.FileName}";
 
             using var memoryStream = new MemoryStream();
             await file.CopyToAsync(memoryStream);
@@ -92,20 +92,20 @@ namespace FileManager.Controllers
         }
 
         [HttpGet("download")]
-        public async Task<IActionResult> DownloadObjects([FromQuery] List<string> keys)
+        public async Task<IActionResult> DownloadObjects([FromQuery] List<string> paths)
         {
-            if (keys == null || keys.Count == 0)
+            if (paths == null || paths.Count == 0)
                 return BadRequest("At least one key is required.");
 
-            if (keys.Count == 1)
+            if (paths.Count == 1)
             {
-                using var response = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, keys.First());
+                using var response = await _amazonS3Client.GetObjectAsync(AppConstants.BucketName, paths.First());
                 if (response.ResponseStream != null)
                 {
                     var memory = new MemoryStream();
                     response.ResponseStream.CopyTo(memory);
 
-                    return File(memory.ToArray(), "application/octet-stream", Path.GetFileName(keys.First()));
+                    return File(memory.ToArray(), "application/octet-stream", Path.GetFileName(paths.First()));
                 }
 
                 return NotFound();
@@ -114,7 +114,7 @@ namespace FileManager.Controllers
             var memoryStream = new MemoryStream();
             using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
             {
-                foreach (var key in keys)
+                foreach (var key in paths)
                 {
                     try
                     {
@@ -135,19 +135,19 @@ namespace FileManager.Controllers
             return File(memoryStream, "application/zip", "files.zip");
         }
 
-        [HttpGet("downloadfolder")]
+        [HttpGet("download/folder")]
         public async Task<IActionResult> DownloadFolderObjects(string path)
         {
-            if (string.IsNullOrWhiteSpace(path))            
-                return BadRequest("The 'path' parameter is required.");            
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest("The 'path' parameter is required.");
 
             if (!path.EndsWith("/"))
-                path += "/";            
+                path += "/";
 
             var request = new ListObjectsV2Request { BucketName = AppConstants.BucketName, Prefix = path };
             var response = await _amazonS3Client.ListObjectsV2Async(request);
 
-            if (!response.S3Objects.Any())            
+            if (!response.S3Objects.Any())
                 return NotFound($"No files found in the specified path: '{path}'.");
 
             var memoryStream = new MemoryStream();
@@ -181,14 +181,16 @@ namespace FileManager.Controllers
             return File(memoryStream, "application/zip", $"{Path.GetFileName(path.TrimEnd('/'))}.zip");
         }
 
-
         [HttpDelete("delete")]
-        public async Task<IActionResult> DeleteFile(string objectKey)
+        public async Task<IActionResult> DeleteFile(string key)
         {
+            if (!key.EndsWith("/"))
+                key += "/";
+
             var deleteObjectRequest = new DeleteObjectRequest
             {
                 BucketName = AppConstants.BucketName,
-                Key = objectKey
+                Key = key
             };
 
             var response = await _amazonS3Client.DeleteObjectAsync(deleteObjectRequest);
@@ -199,20 +201,20 @@ namespace FileManager.Controllers
             return Ok(new { Message = "Arquivo deletado com sucesso!" });
         }
 
-        private async Task<FilesTreeNode> GetAllFiles(string directory = "")
+        private async Task<FilesTreeNode> GetAllFiles(string path = "")
         {
             var rootNode = new FilesTreeNode
             {
                 Name = "",
                 IsDirectory = true,
                 Path = "/",
-                BreadCrumbs = directory
+                BreadCrumbs = path
             };
 
             var listObjectsRequest = new ListObjectsV2Request
             {
                 BucketName = AppConstants.BucketName,
-                Prefix = directory
+                Prefix = path
             };
 
             ListObjectsV2Response response;
@@ -222,7 +224,7 @@ namespace FileManager.Controllers
                 response = await _amazonS3Client.ListObjectsV2Async(listObjectsRequest);
                 foreach (var s3Object in response.S3Objects)
                 {
-                    FileTreeBuilder.InsertObjectIntoTree(rootNode, s3Object, directory);
+                    FileTreeBuilder.InsertObjectIntoTree(rootNode, s3Object, path);
                 }
 
                 listObjectsRequest.ContinuationToken = response.NextContinuationToken;
