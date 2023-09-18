@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
 using System.IO.Compression;
+using System.Numerics;
 
 namespace FileManager.Controllers
 {
@@ -20,23 +21,19 @@ namespace FileManager.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string path = "")
+        public async Task<IActionResult> Index(string path = "", string query = "")
         {
-            var nodes = await GetAllFiles(path);
-            return Ok(nodes);
-        }
-
-        [HttpGet("search")]
-        public async Task<IActionResult> Search(string rootPath, string query)
-        {
-            var rootNode = await GetAllFiles(rootPath);
+            var rootNode = await GetAllFiles(path);
+            
+            if(string.IsNullOrEmpty(query))
+                return Ok(rootNode);
 
             List<FilesTreeNode> results = new();
             FileTreeBuilder.RecursiveSearch(rootNode, query, results);
 
-            FilesTreeNode node = new() { Children = results, IsDirectory = true };
+            FilesTreeNode searchNode = new() { Children = results, IsDirectory = true };
+            return Ok(searchNode);
 
-            return Ok(node);
         }
 
         [HttpPost]
