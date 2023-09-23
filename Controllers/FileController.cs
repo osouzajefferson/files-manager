@@ -49,7 +49,7 @@ namespace FileManager.Controllers
 
             return Ok(new { Message = "Diretório criado com sucesso!" });
         }
-        
+
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFiles(IFormFile[] file, string path)
         {
@@ -152,6 +152,10 @@ namespace FileManager.Controllers
         [HttpDelete("delete")]
         public async Task<IActionResult> DeleteFile(string key)
         {
+
+            if (key.StartsWith('/'))
+                key = key.Remove(0, 1);
+
             var deleteObjectRequest = new DeleteObjectRequest
             {
                 BucketName = AppConstants.BucketName,
@@ -165,11 +169,5 @@ namespace FileManager.Controllers
 
             return Ok(new { Message = "Arquivo deletado com sucesso!" });
         }
-
-      
-
-      
-
-       
     }
 }
