@@ -15,6 +15,7 @@ namespace FileManager
                 var part = parts[i];
                 var isDirectory = i < parts.Length - 1 || s3Object.Key.EndsWith("/");
 
+
                 var childNode = currentNode.Children.FirstOrDefault(x => x.Name == part);
                 if (childNode == null)
                 {
@@ -28,7 +29,16 @@ namespace FileManager
 
 
                     if (childNode.IsDirectory)
+                    {
                         childNode.BreadCrumbs = childNode.Path.Replace($"{AppConstants.GetFullPath}", "").TrimEnd('/').TrimStart('/');
+                    }
+                    else
+                    {
+                        if (s3Object.Key.EndsWith(".pdf", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            childNode.Thumbnail = $"{AppConstants.ThumbnailPath}/{s3Object.Key}";
+                        }
+                    }
 
                     currentNode.Children.Add(childNode);
                 }
@@ -46,7 +56,8 @@ namespace FileManager
                     BreadCrumbs = node.BreadCrumbs,
                     FileExtension = node.FileExtension,
                     Children = new(),
-                    Path = node.Path
+                    Path = node.Path,
+                    Thumbnail = node.Thumbnail,
                 });
 
             foreach (var child in node.Children)
@@ -64,5 +75,6 @@ namespace FileManager
         public string FileExtension { get; set; } = string.Empty;
         public List<FilesTreeNode> Children { get; set; } = new List<FilesTreeNode>();
         public string BreadCrumbs { get; set; } = string.Empty;
+        public string Thumbnail { get; set; } = string.Empty;
     }
 }

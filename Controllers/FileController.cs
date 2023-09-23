@@ -1,11 +1,11 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
-using Amazon.Util.Internal;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
-using System.IO;
 using System.IO.Compression;
-using System.Numerics;
+using GemBox.Pdf;
+using GemBox.Pdf.Content;
+using System.Drawing;
+using GemBox.Document;
 
 namespace FileManager.Controllers
 {
@@ -24,8 +24,8 @@ namespace FileManager.Controllers
         public async Task<IActionResult> Index(string path = "", string query = "")
         {
             var rootNode = await GetAllFiles(path);
-            
-            if(string.IsNullOrEmpty(query))
+
+            if (string.IsNullOrEmpty(query))
                 return Ok(rootNode);
 
             List<FilesTreeNode> results = new();
@@ -215,6 +215,9 @@ namespace FileManager.Controllers
 
         private async Task UploadSingleFile(IFormFile file, string path)
         {
+            GemBox.Document.ComponentInfo.SetLicense("FREE-LIMITED-KEY");
+            GemBox.Pdf.ComponentInfo.SetLicense("FREE-LIMITED-KEY");
+
             var keyName = $"{path}/{file.FileName}";
 
             using var memoryStream = new MemoryStream();
@@ -241,6 +244,58 @@ namespace FileManager.Controllers
             };
 
             await _amazonS3Client.PutACLAsync(premissionRequest);
+
+            var thumnailFilePath = $"{AppConstants.ThumbnailFolder}/{keyName}";
+
+            if (file.ContentType == "application/pdf")
+            {
+                using var memoryStream2 = new MemoryStream();
+                await file.CopyToAsync(memoryStream2);
+
+                // Load PDF with GemBox.Pdf
+                var document = PdfDocument.Load(memoryStream2);
+                var page = document.Pages[0];
+
+                // Extract the content of the first page into a new temporary PDF
+                using var tempStream = new MemoryStream();
+                using var tempDocument = new PdfDocument();
+                tempDocument.Pages.AddClone(page);
+                tempDocument.Save(tempStream);
+
+                var imageOpt = new GemBox.Document.ImageSaveOptions
+                {
+                    PageCount = 1,
+                    PageNumber = 0,
+                    Format = GemBox.Document.ImageSaveFormat.Png,
+                    DpiX = 96,
+                    DpiY = 96,
+                };
+
+                using var imageStream = new MemoryStream();
+
+                DocumentModel.Load(tempStream, new GemBox.Document.PdfLoadOptions { LoadType = PdfLoadType.HighFidelity }).Save(imageStream, imageOpt);
+
+                var imageRequest = new PutObjectRequest
+                {
+                    BucketName = AppConstants.BucketName,
+                    Key = thumnailFilePath,
+                    InputStream = imageStream,
+                    ContentType = "image/png"
+                };
+
+                var imageResponse = await _amazonS3Client.PutObjectAsync(imageRequest);
+                if (imageResponse.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                    throw new Exception(imageResponse.ToString());
+
+                var imagePermissionRequest = new PutACLRequest
+                {
+                    BucketName = AppConstants.BucketName,
+                    Key = thumnailFilePath,
+                    CannedACL = S3CannedACL.PublicRead
+                };
+
+                await _amazonS3Client.PutACLAsync(imagePermissionRequest);
+            }
         }
     }
 }

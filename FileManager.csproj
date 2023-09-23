@@ -8,8 +8,13 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="3.7.203.11" />
+    <PackageReference Include="GemBox.Document" Version="35.0.1480" />
+    <PackageReference Include="GemBox.Pdf" Version="17.0.1404" />
+    <PackageReference Include="Ghostscript.NET" Version="1.2.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.3" />
+    <PackageReference Include="PdfSharp" Version="1.50.5147" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+    <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
   </ItemGroup>
 
 </Project>
