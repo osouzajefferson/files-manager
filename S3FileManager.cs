@@ -165,7 +165,7 @@ namespace FileManager
             var premissionRequest = new PutACLRequest
             {
                 BucketName = AppConstants.BucketName,
-                Key = currentKey,
+                Key = newKey,
                 CannedACL = S3CannedACL.PublicRead
             };
 
