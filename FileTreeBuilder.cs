@@ -4,6 +4,8 @@ namespace FileManager
 {
     public static class FileTreeBuilder
     {
+        private static readonly string[] imageExtensions = { ".png", ".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp", "gif", ".svg" };
+
         public static void InsertObjectIntoTree(FilesTreeNode rootNode, S3Object s3Object, string prefix)
         {
             var relativePath = s3Object.Key.Substring(prefix.Length).Trim('/');
@@ -34,10 +36,11 @@ namespace FileManager
                     }
                     else
                     {
-                        if (s3Object.Key.EndsWith(".pdf", StringComparison.InvariantCultureIgnoreCase))
-                        {
+                        if (childNode.FileExtension.Equals(".pdf", StringComparison.InvariantCultureIgnoreCase))
                             childNode.Thumbnail = $"{AppConstants.ThumbnailPath}/{s3Object.Key}";
-                        }
+
+                        if (imageExtensions.Contains(childNode.FileExtension))
+                            childNode.Thumbnail = $"{AppConstants.GetFullPath}/{s3Object.Key}";
                     }
 
                     currentNode.Children.Add(childNode);
