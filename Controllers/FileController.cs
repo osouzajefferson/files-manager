@@ -2,10 +2,6 @@
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
 using System.IO.Compression;
-using GemBox.Pdf;
-using GemBox.Pdf.Content;
-using System.Drawing;
-using GemBox.Document;
 
 namespace FileManager.Controllers
 {
@@ -167,7 +163,14 @@ namespace FileManager.Controllers
             if (response.HttpStatusCode != System.Net.HttpStatusCode.NoContent)
                 return BadRequest(new { Message = "Erro ao deletar o arquivo do S3." });
 
-            return Ok(new { Message = "Arquivo deletado com sucesso!" });
+            return Ok();
+        }
+
+        [HttpPut("move")]
+        public async Task<IActionResult> Move(string currentKey, string newKey)
+        {
+            await _fileManager.Rename(currentKey, newKey);
+            return Ok();
         }
     }
 }
