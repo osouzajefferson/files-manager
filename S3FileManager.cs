@@ -182,23 +182,23 @@ namespace FileManager
             if (deleteResponse.HttpStatusCode != System.Net.HttpStatusCode.NoContent)
                 throw new Exception(deleteResponse.ToString());
 
-            //if (currentKey.EndsWith(".pdf") && newKey.EndsWith(".pdf"))
-            //{
-            //    // Get the copied PDF file from S3 to generate a thumbnail
-            //    var getRequest = new GetObjectRequest
-            //    {
-            //        BucketName = AppConstants.BucketName,
-            //        Key = newKey
-            //    };
+            if (currentKey.EndsWith(".pdf") && newKey.EndsWith(".pdf"))
+            {
+                var getRequest = new GetObjectRequest
+                {
+                    BucketName = AppConstants.BucketName,
+                    Key = newKey
+                };
 
-            //    using var getResponse = await _amazonS3Client.GetObjectAsync(getRequest);
-            //    using var fileStream = getResponse.ResponseStream;
+                var thumnailFilePath = $"{AppConstants.ThumbnailFolder}/{newKey}";
 
+                using var getResponse = await _amazonS3Client.GetObjectAsync(getRequest);
+                using var fileStream = getResponse.ResponseStream;
 
-            //    var memoryStream = new MemoryStream();
-            //    fileStream.CopyTo(memoryStream);
-            //    await CreateThumbFromMemoryStream(memoryStream, newKey);
-            //}
+                var memoryStream = new MemoryStream();
+                fileStream.CopyTo(memoryStream);
+                await CreateThumbFromMemoryStream(memoryStream, thumnailFilePath);
+            }
         }
     }
 }
